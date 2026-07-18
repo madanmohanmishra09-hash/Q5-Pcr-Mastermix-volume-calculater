@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Q5 PCR Master Mix Calculator</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#262b35;
+    --accent:#5fb3ff; --text:#e7e9ee; --muted:#9aa3b2;
+    --good:#4ade80;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:24px; background:var(--bg); color:var(--text);
+    font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    display:flex; justify-content:center;
+  }
+  .wrap{width:100%; max-width:720px;}
+  h1{font-size:1.3rem; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:0.85rem; margin-bottom:20px;}
+  .panel{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:18px 20px; margin-bottom:16px;
+  }
+  .row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 0; border-bottom:1px solid var(--line); gap:12px;
+  }
+  .row:last-child{border-bottom:none;}
+  .row label{font-size:0.92rem; flex:1;}
+  .row .tag{font-size:0.72rem; color:var(--muted); margin-left:6px;}
+  input[type=number]{
+    width:90px; background:#0d0f14; border:1px solid #32384a;
+    color:var(--text); border-radius:8px; padding:6px 8px;
+    font-size:0.95rem; text-align:right;
+  }
+  input[type=number]:focus{outline:none; border-color:var(--accent);}
+  .total-row input{width:110px; font-weight:600; color:var(--accent);}
+  .result-row{
+    display:flex; justify-content:space-between; padding:7px 0;
+    font-size:0.95rem;
+  }
+  .result-row span:last-child{font-weight:600;}
+  .water{color:var(--good);}
+  .fixed{color:#f5b942;}
+  small.note{color:var(--muted); display:block; margin-top:10px; font-size:0.78rem; line-height:1.4;}
+  .grand{
+    display:flex; justify-content:space-between; margin-top:10px;
+    padding-top:10px; border-top:1px solid var(--line);
+    font-size:1rem; font-weight:700;
+  }
+  .reset{
+    background:none; border:1px solid #32384a; color:var(--muted);
+    padding:6px 14px; border-radius:8px; font-size:0.8rem; cursor:pointer;
+  }
+  .reset:hover{border-color:var(--accent); color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Q5 High-GC PCR Master Mix Calculator</h1>
+  <div class="sub">Enter a new total reaction volume — every component scales automatically <b>except</b> template/sample volume (fixed input). Water is auto-adjusted to fill the remainder.</div>
+
+  <div class="panel">
+    <div class="row total-row">
+      <label>Total reaction volume (per sample)</label>
+      <div><input id="totalVol" type="number" value="25" step="0.1" min="1"> µl</div>
+    </div>
+    <div class="row total-row">
+      <label>Number of reactions</label>
+      <div><input id="numRxn" type="number" value="1" step="1" min="1"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <label>Q5 polymerase Buffer (5X) <span class="tag">base 5 µl @ 25 µl</span></label>
+      <input id="buffer" type="number" value="5" step="0.05">
+    </div>
+    <div class="row">
+      <label>Q5 High GC enhancer <span class="tag">base 5 µl @ 25 µl</span></label>
+      <input id="enhancer" type="number" value="5" step="0.05">
+    </div>
+    <div class="row">
+      <label>dNTP mix <span class="tag">base 1 µl @ 25 µl</span></label>
+      <input id="dntp" type="number" value="1" step="0.05">
+    </div>
+    <div class="row">
+      <label>Primer F <span class="tag">base 1 µl @ 25 µl</span></label>
+      <input id="primerF" type="number" value="1" step="0.05">
+    </div>
+    <div class="row">
+      <label>Primer R <span class="tag">base 1 µl @ 25 µl</span></label>
+      <input id="primerR" type="number" value="1" step="0.05">
+    </div>
+    <div class="row">
+      <label>Q5 polymerase <span class="tag">base 0.25 µl @ 25 µl</span></label>
+      <input id="polymerase" type="number" value="0.25" step="0.01">
+    </div>
+    <div class="row">
+      <label>Template / sample DNA <span class="tag fixed">(fixed — not scaled)</span></label>
+      <input id="template" type="number" value="2.5" step="0.1">
+    </div>
+    <button class="reset" onclick="resetDefaults()">Reset to defaults</button>
+  </div>
+
+  <div class="panel" id="results"></div>
+
+  <small class="note">
+    Scaling factor = (new total volume) ÷ 25 µl, applied to every reagent above except the template/sample volume, which you set directly per reaction.<br>
+    Water (H2O) = Total volume − (sum of all scaled reagents) − Template volume.<br>
+    If water comes out negative, your total volume is too small for the fixed components — increase total volume or reduce template.
+  </small>
+</div>
+
+<script>
+const ids = ["buffer","enhancer","dntp","primerF","primerR","polymerase","template","totalVol","numRxn"];
+ids.forEach(id => document.getElementById(id).addEventListener("input", calculate));
+
+const BASE = 25; // base standard reaction volume these ratios are defined against
+
+function resetDefaults(){
+  document.getElementById("buffer").value = 5;
+  document.getElementById("enhancer").value = 5;
+  document.getElementById("dntp").value = 1;
+  document.getElementById("primerF").value = 1;
+  document.getElementById("primerR").value = 1;
+  document.getElementById("polymerase").value = 0.25;
+  document.getElementById("template").value = 2.5;
+  document.getElementById("totalVol").value = 25;
+  document.getElementById("numRxn").value = 1;
+  calculate();
+}
+
+function fmt(n){
+  if(!isFinite(n)) return "—";
+  return (Math.round(n*100)/100).toString();
+}
+
+function calculate(){
+  const totalVol = parseFloat(document.getElementById("totalVol").value) || 0;
+  const numRxn = parseInt(document.getElementById("numRxn").value) || 1;
+  const template = parseFloat(document.getElementById("template").value) || 0;
+
+  const scale = totalVol / BASE;
+
+  const comps = [
+    {name:"Q5 polymerase Buffer", base: parseFloat(document.getElementById("buffer").value)||0},
+    {name:"Q5 High GC enhancer", base: parseFloat(document.getElementById("enhancer").value)||0},
+    {name:"dNTP mix", base: parseFloat(document.getElementById("dntp").value)||0},
+    {name:"Primer F", base: parseFloat(document.getElementById("primerF").value)||0},
+    {name:"Primer R", base: parseFloat(document.getElementById("primerR").value)||0},
+    {name:"Q5 polymerase", base: parseFloat(document.getElementById("polymerase").value)||0},
+  ];
+
+  let scaledSum = 0;
+  let rows = "";
+  comps.forEach(c=>{
+    const v = c.base * scale;
+    scaledSum += v;
+    rows += `<div class="result-row"><span>${c.name}</span><span>${fmt(v)} µl</span></div>`;
+  });
+
+  rows += `<div class="result-row"><span>Template / sample DNA <span class="tag fixed">(fixed)</span></span><span class="fixed">${fmt(template)} µl</span></div>`;
+
+  const water = totalVol - scaledSum - template;
+  rows += `<div class="result-row"><span>H2O (to volume)</span><span class="water">${fmt(water)} µl</span></div>`;
+
+  rows += `<div class="grand"><span>Total per reaction</span><span>${fmt(totalVol)} µl</span></div>`;
+
+  if(numRxn > 1){
+    rows += `<div class="grand" style="border-top:none; padding-top:2px;"><span>Master mix for ${numRxn} reactions</span><span>${fmt(totalVol*numRxn)} µl</span></div>`;
+    rows += `<hr style="border-color:#262b35; margin:10px 0;">`;
+    comps.forEach(c=>{
+      const v = c.base*scale*numRxn;
+      rows += `<div class="result-row"><span>${c.name} ×${numRxn}</span><span>${fmt(v)} µl</span></div>`;
+    });
+    rows += `<div class="result-row"><span>H2O ×${numRxn}</span><span class="water">${fmt(water*numRxn)} µl</span></div>`;
+    rows += `<div class="result-row"><span>Template ×${numRxn} <span class="tag fixed">(add per-tube, not pooled)</span></span><span class="fixed">${fmt(template*numRxn)} µl</span></div>`;
+  }
+
+  if(water < 0){
+    rows += `<div class="result-row" style="color:#ff6b6b;">⚠ Total volume too small for fixed components — water is negative.</div>`;
+  }
+
+  document.getElementById("results").innerHTML = rows;
+}
+
+calculate();
+</script>
+</body>
+</html>
